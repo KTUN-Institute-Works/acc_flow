@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import os
 import sys
+import time
 import matplotlib.pyplot as plt
 
 # Model dosyasını import edebilmek için
@@ -24,6 +25,7 @@ def get_file_paths():
 
 
 def apply_adaptive_stabilization():
+    start_time = time.time()
     print(f"--- STAGE 8: CNN Tabanlı Final Stabilizasyon ---")
     video_path, imu_path, model_path, out_path, plot_path = get_file_paths()
 
@@ -81,11 +83,48 @@ def apply_adaptive_stabilization():
     # 0.8 = Biraz yumuşat.
     ALPHA = 1.0
 
-    # Side-by-Side Video
-    out_W = W * 2
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(out_path, fourcc, fps, (out_W, H))
 
+    # --- GLOBAL CROP HESABI ---
+    scaled_dx = -(offsets[:, 0] * scale_factor * ALPHA)
+    scaled_dy = -(offsets[:, 1] * scale_factor * ALPHA)
+
+    min_dx = np.min(scaled_dx)
+    max_dx = np.max(scaled_dx)
+
+    min_dy = np.min(scaled_dy)
+    max_dy = np.max(scaled_dy)
+
+    # valid region
+    x1 = max(0, int(np.ceil(max_dx)))
+    x2 = min(W, int(np.floor(W + min_dx)))
+
+    y1 = max(0, int(np.ceil(max_dy)))
+    y2 = min(H, int(np.floor(H + min_dy)))
+
+    print("Crop region:", x1, y1, x2, y2)
+
+    # Side-by-Side Video
+    crop_W = x2 - x1
+    crop_H = y2 - y1
+
+    if crop_W <= 0 or crop_H <= 0:
+        print("❌ HATALI CROP:", crop_W, crop_H)
+        return
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out_orig = cv2.VideoWriter(os.path.join(project_root, "outputs", "original_crop.mp4"), fourcc, fps,
+                               (crop_W, crop_H))
+
+    out_stab = cv2.VideoWriter(os.path.join(project_root, "outputs", "stabilized_crop.mp4"), fourcc, fps,
+                               (crop_W, crop_H))
+
+    out_overlay = cv2.VideoWriter(os.path.join(project_root, "outputs", "overlay.mp4"), fourcc, fps, (crop_W, crop_H))
+
+
+    # 3 panel (aralarda çizgi var)
+    panel_width = crop_W * 3 + 10  # 2 çizgi * 5px
+    out_panel = cv2.VideoWriter(os.path.join(project_root, "outputs", "compare_3panel.mp4"), fourcc, fps,
+                                (panel_width, crop_H))
+    out_final = cv2.VideoWriter(out_path, fourcc, fps, (crop_W, crop_H))
     font = cv2.FONT_HERSHEY_SIMPLEX
 
     trajectory_x = []
@@ -94,12 +133,13 @@ def apply_adaptive_stabilization():
 
 
     print("🚀 Video render ediliyor...")
-
-    for i in range(total_frames):
+    max_frames = min(total_frames, len(offsets))
+    for i in range(max_frames):
         ret, frame = cap.read()
         if not ret: break
 
         frame_orig = frame.copy()
+        frame_orig = frame_orig[y1:y2, x1:x2]
         frame_stab = frame.copy()
 
         # Eğer tahmin verimiz varsa uygula
@@ -121,21 +161,53 @@ def apply_adaptive_stabilization():
             dy = -(pred_dy * scale_factor * ALPHA)
 
             M = np.float32([[1, 0, dx], [0, 1, dy]])
-            frame_stab = cv2.warpAffine(frame, M, (W, H))
+            frame_stab = cv2.warpAffine(
+                frame,
+                M,
+                (W, H),
+                borderMode=cv2.BORDER_CONSTANT,
+                borderValue=(0, 0, 0)
+            )
+        frame_stab = frame_stab[y1:y2, x1:x2]
 
-        # Görselleştirme
-        cv2.putText(frame_orig, "Original", (30, 50), font, 1.5, (0, 0, 255), 3)
-        cv2.putText(frame_stab, "CNN Stabilized (IMU Only)", (30, 50), font, 1.5, (0, 255, 0), 3)
+        # --- OVERLAY ---
+        BETA = 0.5
+        overlay = cv2.addWeighted(frame_orig, 1 - BETA, frame_stab, BETA, 0)
 
-        combined = np.hstack([frame_orig, frame_stab])
-        out.write(combined)
+        # --- LABELS ---
+        cv2.putText(frame_orig, "Original", (20, 40), font, 1.0, (0, 0, 255), 2)
+        cv2.putText(frame_stab, "", (20, 40), font, 1.0, (0, 255, 0), 2)
+        cv2.putText(overlay, "Overlay", (20, 40), font, 1.0, (255, 255, 255), 2)
+
+        # --- 3 PANEL ---
+        line = np.ones((crop_H, 5, 3), dtype=np.uint8) * 255
+
+        panel = np.hstack([
+            frame_orig,
+            line,
+            frame_stab,
+            line,
+            overlay
+        ])
+
+        out_orig.write(frame_orig)
+        out_stab.write(frame_stab)
+        out_overlay.write(overlay)
+        out_panel.write(panel)
+        out_final.write(frame_stab)
 
         if (i + 1) % 20 == 0:
             print(f"   Kare: {i + 1}/{total_frames}")
 
     cap.release()
-    out.release()
+    out_orig.release()
+    out_stab.release()
+    out_overlay.release()
+    out_panel.release()
+    out_final.release()
+    end_time = time.time()
     print(f"✅ Final Video Hazır: {out_path}")
+    print(f"⏰ Toplam süre: {end_time - start_time:.2f} saniye")
 
     # 5. Sonuç Grafiği (Makale için harika bir görsel)
     plt.figure(figsize=(12, 6))

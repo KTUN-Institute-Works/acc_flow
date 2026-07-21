@@ -1,0 +1,650 @@
+NNDVS
+
+(nndvs) penguin@DESKTOP-NIO2DBP:~/dev/NNDVS$ python ./motion_estimater/estimate.py
+Hazırlanıyor: (320, 320) Video & (40, 40) Mesh Flow...
+Başarıyla tamamlandı. Veri şekli: (1798, 40, 40, 2)
+(nndvs) penguin@DESKTOP-NIO2DBP:~/dev/NNDVS$ time python ./eval_nus.py --video_dir=MyTest/original/videos --motion_dir=MyTest/original/motions/mesh --model_path=./pretrained/pretrained_model.pth.tar
+Loading Datasets...
+Video Dir: ./data/NUS_dataset/MyTest/original/videos
+Motion Dir: ./data/NUS_dataset/MyTest/original/motions/mesh
+Fetch Evaluate Dataloaders...
+Loading Deep MeshFlows: ./data/NUS_dataset/MyTest/original/motions/mesh/0.npy
+Total Length: 1769
+Loading Pretrained Model From: ./pretrained/pretrained_model.pth.tar
+Starting Evaluation...
+Eval Video: 0
+  0%|                                                                                          | 0/1769 [00:00<?, ?it/s]/home/penguin/anaconda3/envs/nndvs/lib/python3.7/site-packages/torch/_tensor.py:575: UserWarning: floor_divide is deprecated, and will be removed in a future version of pytorch. It currently rounds toward 0 (like the 'trunc' function NOT 'floor'). This results in incorrect rounding for negative values.
+To keep the current behavior, use torch.div(a, b, rounding_mode='trunc'), or for actual floor division, use torch.div(a, b, rounding_mode='floor'). (Triggered internally at  /pytorch/aten/src/ATen/native/BinaryOps.cpp:467.)
+  return torch.floor_divide(self, other)
+OpenCV: FFMPEG: tag 0x34504d46/'FMP4' is not supported with codec id 12 and format 'mp4 / MP4 (MPEG-4 Part 14)'
+OpenCV: FFMPEG: fallback to use tag 0x7634706d/'mp4v'
+OpenCV: FFMPEG: tag 0x34504d46/'FMP4' is not supported with codec id 12 and format 'mp4 / MP4 (MPEG-4 Part 14)'
+OpenCV: FFMPEG: fallback to use tag 0x7634706d/'mp4v'
+100%|█████████████████████████████████████████████████████████████████████████████▉| 1798/1799 [00:03<00:00, 494.50it/s]
+Crop Ratio: 0.963
+Min Crop Ratio: 0.868
+Distortion Value: 0.925
+Stability Score: 0.884
+Avg Crop Ratio: 0.963
+Avg Distortion Value: 0.925
+Avg Stability Score: 0.884
+Finished...
+
+real    0m50.200s
+user    7m38.349s
+sys     0m49.051s
+
+
+(nndvs) penguin@DESKTOP-NIO2DBP:~/dev/NNDVS$ conda deactivate
+(base) penguin@DESKTOP-NIO2DBP:~/dev/NNDVS$ cd ..
+(base) penguin@DESKTOP-NIO2DBP:~/dev$ cd DUTCode
+(base) penguin@DESKTOP-NIO2DBP:~/dev/DUTCode$ ffmpeg -i test.mp4 -start_number 0 "images/%d.jpg"
+ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers
+  built with gcc 13 (Ubuntu 13.2.0-23ubuntu3)
+  configuration: --prefix=/usr --extra-version=3ubuntu5 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --disable-omx --enable-gnutls --enable-libaom --enable-libass --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libharfbuzz --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-openal --enable-opencl --enable-opengl --disable-sndio --enable-libvpl --disable-libmfx --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-ladspa --enable-libbluray --enable-libjack --enable-libpulse --enable-librabbitmq --enable-librist --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libx264 --enable-libzmq --enable-libzvbi --enable-lv2 --enable-sdl2 --enable-libplacebo --enable-librav1e --enable-pocketsphinx --enable-librsvg --enable-libjxl --enable-shared
+  libavutil      58. 29.100 / 58. 29.100
+  libavcodec     60. 31.102 / 60. 31.102
+  libavformat    60. 16.100 / 60. 16.100
+  libavdevice    60.  3.100 / 60.  3.100
+  libavfilter     9. 12.100 /  9. 12.100
+  libswscale      7.  5.100 /  7.  5.100
+  libswresample   4. 12.100 /  4. 12.100
+  libpostproc    57.  3.100 / 57.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'test.mp4':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2avc1mp41
+    encoder         : Lavf62.3.100
+  Duration: 00:01:00.03, start: 0.000000, bitrate: 1677 kb/s
+  Stream #0:0[0x1](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 128 kb/s (default)
+    Metadata:
+      handler_name    : SoundHandler
+      vendor_id       : [0][0][0][0]
+  Stream #0:1[0x2](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt709, progressive), 480x720 [SAR 1:1 DAR 2:3], 1540 kb/s, 29.97 fps, 29.97 tbr, 30k tbn (default)
+    Metadata:
+      handler_name    : VideoHandler
+      vendor_id       : [0][0][0][0]
+      encoder         : Lavc62.11.100 libx264
+Stream mapping:
+  Stream #0:1 -> #0:0 (h264 (native) -> mjpeg (native))
+Press [q] to stop, [?] for help
+[swscaler @ 0x647e22462500] deprecated pixel format used, make sure you did set range correctly
+[swscaler @ 0x647e22470d80] deprecated pixel format used, make sure you did set range correctly
+[swscaler @ 0x647e2246f780] deprecated pixel format used, make sure you did set range correctly
+    Last message repeated 1 times
+Output #0, image2, to 'images/%d.jpg':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2avc1mp41
+    encoder         : Lavf60.16.100
+  Stream #0:0(und): Video: mjpeg, yuvj420p(pc, bt709, progressive), 480x720 [SAR 1:1 DAR 2:3], q=2-31, 200 kb/s, 29.97 fps, 29.97 tbn (default)
+    Metadata:
+      handler_name    : VideoHandler
+      vendor_id       : [0][0][0][0]
+      encoder         : Lavc60.31.102 mjpeg
+    Side data:
+      cpb: bitrate max/min/avg: 0/0/200000 buffer size: 0 vbv_delay: N/A
+[out#0/image2 @ 0x647e21600380] video:11673kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: unknown
+frame= 1799 fps=769 q=24.8 Lsize=N/A time=00:00:59.99 bitrate=N/A speed=25.6x
+(base) penguin@DESKTOP-NIO2DBP:~/dev/DUTCode$ conda activate DUTCode
+(DUTCode) penguin@DESKTOP-NIO2DBP:~/dev/DUTCode$ ./scripts/deploy_samples.sh
+Directory exists
+ Stabilizing using the DUT model
+-----------------------------------
+Namespace(SmootherPath='ckpt/smoother.pth', RFDetPath='ckpt/RFDet_640.pth.tar', PWCNetPath='ckpt/network-default.pytorch', MotionProPath='ckpt/MotionPro.pth', SingleHomo=False, InputBasePath='images/', OutputBasePath='results/', OutNamePrefix='', MaxLength=150, Repeat=50)
+-------------model configuration------------------------
+using RFNet ...
+using PWCNet for motion estimation...
+using Motion Propagation model with multi homo...
+using Deep Smoother Model...
+------------------reload parameters-------------------------
+reload Smoother params
+/home/penguin/dev/DUTCode/models/DUT/DUT.py:292: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  pretrained_dict = torch.load(SmootherPath)
+successfully load 12 params for smoother
+reload RFDet Model
+/home/penguin/dev/DUTCode/models/DUT/DUT.py:106: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  pretrained_dict = torch.load(RFDetPath)['state_dict']
+successfully load 100 params for RFDet
+reload PWCNet Model
+/home/penguin/dev/DUTCode/models/DUT/DUT.py:152: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  self.PWCNet.load_state_dict({strKey.replace('module', 'net'): tenWeight for strKey, tenWeight in torch.load(PWCNetPath).items()})
+reload MotionPropagation Model
+/home/penguin/dev/DUTCode/models/DUT/DUT.py:317: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  model_dict_motion = torch.load(MotionProPath)
+successfully load 21 params for MotionPropagation
+detect keypoints ....
+/home/penguin/dev/DUTCode/models/DUT/rf_det_module.py:201: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+  psf = torch.tensor(gauss_weight, dtype=im1w_score.dtype, device=im1w_score.device)
+estimate motion ....
+motion propagation ....
+/home/penguin/anaconda3/envs/DUTCode/lib/python3.9/site-packages/torch/functional.py:534: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at /opt/conda/conda-bld/pytorch_1729647327249/work/aten/src/ATen/native/TensorShape.cpp:3595.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+generate stabilized video...
+100%|███████████████████████████████████████████████████████████████████████████████| 150/150 [00:00<00:00, 237.32it/s]
+>>> DUT Model çalışma süresi: 25.294162986 saniye.
+-----------------------------------
+ Stabilizing using the DIFRINT model
+-----------------------------------
+Namespace(modelPath='ckpt/DIFNet2.pth', InputBasePath='images/', OutputBasePath='results/', temp_file='./DIFRINT_TEMP/', n_iter=3, skip=2, desiredWidth=640, desiredHeight=480, cuda=True)
+/home/penguin/dev/DUTCode/models/DIFRINT/models.py:297: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  self.pwc.load_state_dict(torch.load('./ckpt/sintel.pytorch'))
+/home/penguin/dev/DUTCode/./scripts/DIFRINTStabilizer.py:54: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  DIFNet.load_state_dict(torch.load(opt.modelPath))
+
+Iter: 1
+/home/penguin/anaconda3/envs/DUTCode/lib/python3.9/site-packages/torch/nn/functional.py:4902: UserWarning: Default grid_sample and affine_grid behavior has changed to align_corners=False since 1.3.0. Please specify align_corners=True if the old behavior is desired. See the documentation of grid_sample for details.
+  warnings.warn(
+Frame: 1798/1798
+Iter: 2
+Frame: 1798/1798
+Iter: 3
+Frame: 1798/1798generate stabilized video...
+
+Video başarıyla kaydedildi!
+>>> DIFRINT Model çalışma süresi: 680.568642082 saniye.
+-----------------------------------
+ Stabilizing using the StabNet model
+-----------------------------------
+/home/penguin/dev/DUTCode/./scripts/StabNetStabilizer.py:35: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  r_model = torch.load(args.modelPath)
+inference with [1, 2, 4, 8, 16, 32]
+totally 1800 frames for stabilization
+length: 10
+fps=11.225503866549834
+length: 20
+fps=14.408033837532166
+length: 30
+fps=16.03113754603267
+length: 40
+fps=17.089654184700958
+length: 50
+fps=17.792824742603912
+length: 60
+fps=18.18192747407724
+length: 70
+fps=18.31718805437561
+length: 80
+fps=18.397751592757956
+length: 90
+fps=18.436936921976567
+length: 100
+fps=18.44518614654953
+length: 110
+fps=18.424472366452623
+length: 120
+fps=18.38828741344124
+length: 130
+fps=18.34658576925361
+length: 140
+fps=18.295091244656177
+length: 150
+fps=18.23603298943613
+length: 160
+fps=18.172716136177392
+length: 170
+fps=18.101439360981068
+length: 180
+fps=18.028337340255522
+length: 190
+fps=17.957990955494584
+length: 200
+fps=17.715528161128834
+length: 210
+fps=17.708328692490102
+length: 220
+fps=17.777635295053294
+length: 230
+fps=17.8389865870389
+length: 240
+fps=17.866382858546118
+length: 250
+fps=17.887259546170085
+length: 260
+fps=17.891326224844978
+length: 270
+fps=17.889122491705052
+length: 280
+fps=17.879951538600118
+length: 290
+fps=17.86243348698755
+length: 300
+fps=17.843283428748936
+length: 310
+fps=17.817514456959085
+length: 320
+fps=17.774904268230415
+length: 330
+fps=17.607295849480273
+length: 340
+fps=17.657724235673985
+length: 350
+fps=17.702158004239433
+length: 360
+fps=17.743859261618745
+length: 370
+fps=17.768669736752887
+length: 380
+fps=17.78358257316479
+length: 390
+fps=17.79441967386746
+length: 400
+fps=17.79582952886124
+length: 410
+fps=17.795059736523392
+length: 420
+fps=17.78653997541256
+length: 430
+fps=17.773413512710302
+length: 440
+fps=17.75565253181741
+length: 450
+fps=17.734901134176212
+length: 460
+fps=17.713764932706546
+length: 470
+fps=17.671761309475492
+length: 480
+fps=17.558847205406302
+length: 490
+fps=17.59915817612889
+length: 500
+fps=17.639630222091828
+length: 510
+fps=17.67356355860221
+length: 520
+fps=17.69303900180229
+length: 530
+fps=17.708274436357687
+length: 540
+fps=17.718436403977293
+length: 550
+fps=17.72165057539835
+length: 560
+fps=17.722464666782372
+length: 570
+fps=17.720373884366595
+length: 580
+fps=17.71494294362662
+length: 590
+fps=17.706648292763447
+length: 600
+fps=17.69587007948128
+length: 610
+fps=17.679100777113995
+length: 620
+fps=17.65448309718391
+length: 630
+fps=17.569430547543956
+length: 640
+fps=17.59620819548289
+length: 650
+fps=17.62409873661935
+length: 660
+fps=17.646506548187645
+length: 670
+fps=17.661345485589454
+length: 680
+fps=17.671399522634424
+length: 690
+fps=17.676852400911905
+length: 700
+fps=17.68132243574427
+length: 710
+fps=17.682283008257436
+length: 720
+fps=17.68095710155241
+length: 730
+fps=17.676523415256394
+length: 740
+fps=17.669416772126446
+length: 750
+fps=17.65988433291345
+length: 760
+fps=17.64852927789548
+length: 770
+fps=17.63033028092921
+length: 780
+fps=17.540076565721655
+length: 790
+fps=17.559745381319512
+length: 800
+fps=17.588914595365896
+length: 810
+fps=17.61717397149543
+length: 820
+fps=17.63183698738804
+length: 830
+fps=17.646366119859323
+length: 840
+fps=17.65619087113062
+length: 850
+fps=17.664333368883394
+length: 860
+fps=17.669422648428736
+length: 870
+fps=17.670805478183166
+length: 880
+fps=17.66932216588823
+length: 890
+fps=17.664185733817405
+length: 900
+fps=17.658775176841832
+length: 910
+fps=17.652067845543527
+length: 920
+fps=17.64320599459746
+length: 930
+fps=17.634348169086948
+length: 940
+fps=17.60665943241694
+length: 950
+fps=17.56250356602996
+length: 960
+fps=17.581874899633135
+length: 970
+fps=17.602967884334447
+length: 980
+fps=17.619160304074587
+length: 990
+fps=17.62918687837655
+length: 1000
+fps=17.63539168763377
+length: 1010
+fps=17.64041612397581
+length: 1020
+fps=17.64201483740517
+length: 1030
+fps=17.641974262467627
+length: 1040
+fps=17.640016123550556
+length: 1050
+fps=17.637469922217576
+length: 1060
+fps=17.633185591286882
+length: 1070
+fps=17.627596285903337
+length: 1080
+fps=17.620030754479117
+length: 1090
+fps=17.60126810065234
+length: 1100
+fps=17.541629835931456
+length: 1110
+fps=17.561026569848412
+length: 1120
+fps=17.580751795417466
+length: 1130
+fps=17.598478953345985
+length: 1140
+fps=17.609551664044552
+length: 1150
+fps=17.618874796819668
+length: 1160
+fps=17.62362677386415
+length: 1170
+fps=17.627001066114566
+length: 1180
+fps=17.62851528916346
+length: 1190
+fps=17.6281201450324
+length: 1200
+fps=17.62596299113017
+length: 1210
+fps=17.622754784175026
+length: 1220
+fps=17.61845724419962
+length: 1230
+fps=17.612176166909524
+length: 1240
+fps=17.605035790445935
+length: 1250
+fps=17.57960680309404
+length: 1260
+fps=17.553243560416007
+length: 1270
+fps=17.566237500275115
+length: 1280
+fps=17.581294815184528
+length: 1290
+fps=17.59356042225972
+length: 1300
+fps=17.600486273012763
+length: 1310
+fps=17.60678891778322
+length: 1320
+fps=17.61099388292552
+length: 1330
+fps=17.612765043979152
+length: 1340
+fps=17.612772775265963
+length: 1350
+fps=17.61081311580836
+length: 1360
+fps=17.60841170042899
+length: 1370
+fps=17.604556229343043
+length: 1380
+fps=17.600162243555733
+length: 1390
+fps=17.58668171671142
+length: 1400
+fps=17.539624802775666
+length: 1410
+fps=17.554732638386444
+length: 1420
+fps=17.56918274339311
+length: 1430
+fps=17.582045467385605
+length: 1440
+fps=17.590488949166872
+length: 1450
+fps=17.597264292907113
+length: 1460
+fps=17.602863861307338
+length: 1470
+fps=17.605895562109225
+length: 1480
+fps=17.607948792378497
+length: 1490
+fps=17.60818372247536
+length: 1500
+fps=17.607198440615115
+length: 1510
+fps=17.605211530342878
+length: 1520
+fps=17.60201788534663
+length: 1530
+fps=17.598302024962848
+length: 1540
+fps=17.592544820129923
+length: 1550
+fps=17.57568736923493
+length: 1560
+fps=17.53976191653887
+length: 1570
+fps=17.553527811223674
+length: 1580
+fps=17.566863084085146
+length: 1590
+fps=17.578916204983575
+length: 1600
+fps=17.586847865543323
+length: 1610
+fps=17.592591394192407
+length: 1620
+fps=17.59710022398479
+length: 1630
+fps=17.600705997632073
+length: 1640
+fps=17.601658448705706
+length: 1650
+fps=17.601119004246996
+length: 1660
+fps=17.600009399419083
+length: 1670
+fps=17.597878589277304
+length: 1680
+fps=17.59513959560176
+length: 1690
+fps=17.590672829099592
+length: 1700
+fps=17.575123332385
+length: 1710
+fps=17.554794386382802
+length: 1720
+fps=17.563581022892063
+length: 1730
+fps=17.572254854877116
+length: 1740
+fps=17.579171965334574
+length: 1750
+fps=17.583601281055113
+length: 1760
+fps=17.587687037386964
+length: 1770
+fps=17.589270108408627
+length: 1780
+fps=17.58935435719171
+length: 1790
+fps=17.58904792034328
+total length=1800
+0
+0
+10
+0
+20
+62376
+30
+129690
+40
+129690
+50
+129690
+60
+129690
+70
+129690
+80
+129690
+90
+129690
+100
+129690
+110
+129690
+120
+129690
+130
+129690
+140
+129690
+>>> StabNet Model çalışma süresi: 158.671823288 saniye.
+
+--- STAGE 8: CNN Tabanlı Final Stabilizasyon ---
+🧠 Model yüklendi ve hazır.
+🔮 Tüm video için sarsıntı tahmini yapılıyor...
+✅ Tahmin tamamlandı. Shape: (1799, 2)
+Crop region: 4 5 476 715
+🚀 Video render ediliyor...
+   Kare: 20/1799
+   Kare: 40/1799
+   Kare: 60/1799
+   Kare: 80/1799
+   Kare: 100/1799
+   Kare: 120/1799
+   Kare: 140/1799
+   Kare: 160/1799
+   Kare: 180/1799
+   Kare: 200/1799
+   Kare: 220/1799
+   Kare: 240/1799
+   Kare: 260/1799
+   Kare: 280/1799
+   Kare: 300/1799
+   Kare: 320/1799
+   Kare: 340/1799
+   Kare: 360/1799
+   Kare: 380/1799
+   Kare: 400/1799
+   Kare: 420/1799
+   Kare: 440/1799
+   Kare: 460/1799
+   Kare: 480/1799
+   Kare: 500/1799
+   Kare: 520/1799
+   Kare: 540/1799
+   Kare: 560/1799
+   Kare: 580/1799
+   Kare: 600/1799
+   Kare: 620/1799
+   Kare: 640/1799
+   Kare: 660/1799
+   Kare: 680/1799
+   Kare: 700/1799
+   Kare: 720/1799
+   Kare: 740/1799
+   Kare: 760/1799
+   Kare: 780/1799
+   Kare: 800/1799
+   Kare: 820/1799
+   Kare: 840/1799
+   Kare: 860/1799
+   Kare: 880/1799
+   Kare: 900/1799
+   Kare: 920/1799
+   Kare: 940/1799
+   Kare: 960/1799
+   Kare: 980/1799
+   Kare: 1000/1799
+   Kare: 1020/1799
+   Kare: 1040/1799
+   Kare: 1060/1799
+   Kare: 1080/1799
+   Kare: 1100/1799
+   Kare: 1120/1799
+   Kare: 1140/1799
+   Kare: 1160/1799
+   Kare: 1180/1799
+   Kare: 1200/1799
+   Kare: 1220/1799
+   Kare: 1240/1799
+   Kare: 1260/1799
+   Kare: 1280/1799
+   Kare: 1300/1799
+   Kare: 1320/1799
+   Kare: 1340/1799
+   Kare: 1360/1799
+   Kare: 1380/1799
+   Kare: 1400/1799
+   Kare: 1420/1799
+   Kare: 1440/1799
+   Kare: 1460/1799
+   Kare: 1480/1799
+   Kare: 1500/1799
+   Kare: 1520/1799
+   Kare: 1540/1799
+   Kare: 1560/1799
+   Kare: 1580/1799
+   Kare: 1600/1799
+   Kare: 1620/1799
+   Kare: 1640/1799
+   Kare: 1660/1799
+   Kare: 1680/1799
+   Kare: 1700/1799
+   Kare: 1720/1799
+   Kare: 1740/1799
+   Kare: 1760/1799
+   Kare: 1780/1799
+✅ Final Video Hazır: /Users/colonel/PycharmProjects/acc_flow/outputs/final_cnn_stabilized.mp4
+⏰ Toplam süre: 9.97 saniye
+📊 Final grafik kaydedildi: /Users/colonel/PycharmProjects/acc_flow/outputs/final_comparison_plot.png
+
+
+Number of frames in file are 1799
+Default PuLP solver failed, probably due to an architecture mismatch.
+Trying to use 'cbc' from your system PATH.
+Solution converged
+python L1optimal.py -i test.mp4 -o output_stabilize.mp4 -crop-ratio 0.8   78.51s user 3.09s system 109% cpu 1:14.70 total
