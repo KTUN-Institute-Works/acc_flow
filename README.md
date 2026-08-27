@@ -1,4 +1,4 @@
-<h1 align="left">IMU-Alpha-Net: Deep Sensor-Fusion Video Stabilization <a href="#"><img src="https://img.shields.io/badge/Status-Completed-<COLOR>.svg" ></a> </h1> 
+<h1 align="left">ACCFlow: Deep Sensor-Fusion Video Stabilization <a href="#"><img src="https://img.shields.io/badge/Status-Completed-<COLOR>.svg" ></a> </h1> 
 
 <p align="center">
   <a href="#introduction">Introduction</a> |
