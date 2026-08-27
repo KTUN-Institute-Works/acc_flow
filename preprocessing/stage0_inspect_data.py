@@ -22,47 +22,56 @@ def get_file_paths():
 
 
 def inspect_data():
+    """
+        Video ve IMU sensör verilerini veri işleme hattından önce (Stage 0) analiz eder.
+
+        Bu fonksiyon şu işlemleri gerçekleştirir:
+        1. Video Analizi: Video dosyasının varlığını ve bütünlüğünü kontrol eder.
+           Açılabiliyorsa toplam frame sayısını, FPS değerini ve videonun toplam süresini saniye cinsinden hesaplar.
+        2. IMU Analizi: Sensör verilerini (CSV) okur; toplam kayıt sayısını, veri süresini ve
+           ortalama örnekleme frekansını (Hz) hesaplar. Ayrıca aynı milisaniyeye denk gelen
+           (duplicate) hatalı zaman damgalarını tespit eder.
+        3. Senkronizasyon Kontrolü: Video süresi ile IMU kayıt süresini karşılaştırarak
+           iki verinin eşzamanlılığı (süre farkı) hakkında bilgi verir.
+
+        Herhangi bir parametre almaz ve değer döndürmez; analiz sonuçlarını doğrudan konsola yazdırır.
+    """
     VIDEO_PATH, IMU_PATH = get_file_paths()
 
     print(f"--- STAGE 0: Veri Analizi Başlıyor ---")
-    print(f"📂 Çalışma Dizini: {os.getcwd()}")
-    print(f"📂 Hedef Video Yolu: {VIDEO_PATH}")
+    print(f"Çalışma Dizini: {os.getcwd()}")
+    print(f"Hedef Video Yolu: {VIDEO_PATH}")
 
-    # ---------------------------------------------------------
-    # 1. VİDEO ANALİZİ
-    # ---------------------------------------------------------
+
     video_duration = 0
     if not os.path.exists(VIDEO_PATH):
-        print(f"❌ HATA: Video dosyası fiziksel olarak yok!")
+        print(f"HATA: Video dosyası fiziksel olarak yok!")
     elif os.path.getsize(VIDEO_PATH) == 0:
-        print(f"❌ HATA: Video dosyası boş (0 byte).")
+        print(f"HATA: Video dosyası boş (0 byte).")
     else:
         cap = cv2.VideoCapture(VIDEO_PATH)
         if not cap.isOpened():
-            print(f"❌ HATA: Video dosyası var ama açılamadı (Codec sorunu?).")
+            print(f"HATA: Video dosyası var ama açılamadı (Codec sorunu?).")
         else:
             video_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             video_fps = cap.get(cv2.CAP_PROP_FPS)
             video_duration = video_frames / video_fps if video_fps > 0 else 0
 
-            print(f"\n🎥 VIDEO BİLGİLERİ:")
+            print(f"\nVIDEO BİLGİLERİ:")
             print(f"   Frame Sayısı: {video_frames}")
             print(f"   FPS: {video_fps:.2f}")
             print(f"   Süre: {video_duration:.4f} saniye")
             cap.release()
 
-    # ---------------------------------------------------------
-    # 2. IMU SENSÖR ANALİZİ (Özel Format)
-    # ---------------------------------------------------------
     if not os.path.exists(IMU_PATH) or os.path.getsize(IMU_PATH) == 0:
-        print(f"\n❌ HATA: Sensör dosyası bulunamadı: {IMU_PATH}")
+        print(f"\nHATA: Sensör dosyası bulunamadı: {IMU_PATH}")
     else:
         try:
             df = pd.read_csv(IMU_PATH)
 
             df.columns = [c.strip() for c in df.columns]
 
-            print(f"\n📉 IMU SENSÖR BİLGİLERİ:")
+            print(f"\nIMU SENSÖR BİLGİLERİ:")
 
             if 'timestamp_ms' in df.columns:
                 t_sec = df['timestamp_ms'].values / 1000.0
@@ -83,27 +92,27 @@ def inspect_data():
                 zero_deltas = np.sum(deltas == 0)
 
                 if zero_deltas > 0:
-                    print(f"   ⚠️ UYARI: {zero_deltas} adet örnekte zaman farkı 0 ms.")
+                    print(f"      UYARI: {zero_deltas} adet örnekte zaman farkı 0 ms.")
                     print(f"      (Stage 1'de resampling yapılacak.)")
                 else:
-                    print(f"   ✅ Zaman damgaları tekil.")
+                    print(f"    Zaman damgaları tekil.")
 
                 # Video ile Kıyaslama
                 if video_duration > 0:
                     diff = abs(video_duration - imu_duration)
-                    print(f"\n⚖️  SENKRONİZASYON DURUMU:")
+                    print(f"\n️  SENKRONİZASYON DURUMU:")
                     print(f"   Video: {video_duration:.2f}s | IMU: {imu_duration:.2f}s")
                     print(f"   Fark: {diff:.2f}s")
 
-                print("\n📊 Örnek Veri (İlk 5 Satır):")
+                print("\n Örnek Veri (İlk 5 Satır):")
                 print(df[['timestamp_ms', 'x', 'y', 'z']].head().to_string(index=False))
 
             else:
-                print(f"❌ HATA: 'timestamp_ms' sütunu bulunamadı. Mevcut sütunlar: {list(df.columns)}")
+                print(f"HATA: 'timestamp_ms' sütunu bulunamadı. Mevcut sütunlar: {list(df.columns)}")
                 print("   CSV dosyanın içeriğini kontrol et.")
 
         except Exception as e:
-            print(f"❌ Beklenmeyen Hata: {e}")
+            print(f" Beklenmeyen Hata: {e}")
 
 
 if __name__ == "__main__":

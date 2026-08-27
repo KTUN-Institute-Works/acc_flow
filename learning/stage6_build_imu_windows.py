@@ -4,6 +4,15 @@ import os
 
 
 def get_file_paths():
+    """
+    Stage 6 (Veri Seti Hazırlığı) için dosya yollarını üretir.
+
+    Döndürdüğü yollar:
+    - imu_features_path: Yapay zekaya GİRDİ (X) olacak IMU özellik dosyası (Stage 2'den).
+    - trajectory_path: Yapay zekaya HEDEF (Y) olacak görsel sarsıntı dosyası (Stage 4'ten).
+    - output_x_path: Pencereleme (windowing) işleminden geçmiş X veri setinin .npy yolu.
+    - output_y_path: Pencereleme işleminden geçmiş Y etiket setinin .npy yolu.
+    """
     current_script_path = os.path.abspath(__file__)
     project_root = os.path.dirname(os.path.dirname(current_script_path))
 
@@ -17,12 +26,26 @@ def get_file_paths():
 
 
 def build_windows():
+    """
+    Zaman serisi olan IMU ve Optik Akış verilerini, Derin Öğrenme (CNN/LSTM)
+    modellerinin eğitilebilmesi için "Sliding Window" (Kayan Pencere) yöntemiyle
+    3 boyutlu tensör (matris) bloklarına dönüştürür.
+
+    İşlem Adımları:
+    1. IMU Jitter (X) ve Visual Jitter (Y) verileri yüklenir.
+    2. İki veri seti arasındaki olası 1-2 karelik farklar (min_len) bulunup uçtan kırpılarak
+       birebir eşit (1:1) eşleşme garanti altına alınır.
+    3. WINDOW_SIZE (ör. 60 kare) genişliğinde pencereler oluşturulur.
+    4. Pencereler STRIDE (ör. 5 kare) adımıyla kaydırılarak veri çoğaltılır (overlap).
+    5. Elde edilen X (Input) ve Y (Target) dizileri Numpy array formatında (.npy)
+       modellemeye hazır halde kaydedilir.
+    """
     print(f"--- STAGE 6: Veri Seti Hazırlığı (Windowing) ---")
     imu_path, traj_path, out_x, out_y = get_file_paths()
 
     # 1. Verileri Yükle
     if not os.path.exists(imu_path) or not os.path.exists(traj_path):
-        print("❌ HATA: Girdi dosyaları eksik (Stage 2 veya Stage 4 çalışmamış).")
+        print("HATA: Girdi dosyaları eksik (Stage 2 veya Stage 4 çalışmamış).")
         return
 
     # IMU Verisi (Stage 2'den gelen jitter_x, jitter_y, jitter_z)
@@ -37,7 +60,7 @@ def build_windows():
     # 2. Boyut Kontrolü (Senkronizasyon Teyidi)
     n_imu = len(df_imu)
     n_vis = len(visual_jitter)
-    print(f"📊 Veri Uzunlukları -> IMU: {n_imu}, Visual: {n_vis}")
+    print(f"Veri Uzunlukları -> IMU: {n_imu}, Visual: {n_vis}")
 
     # En kısa olana göre kırp (Eğer 1-2 frame fark varsa sondan atalım)
     min_len = min(n_imu, n_vis)
@@ -62,7 +85,7 @@ def build_windows():
     windows_X = []
     windows_Y = []
 
-    print(f"🪟 Pencereleme Başlıyor (Size={WINDOW_SIZE}, Stride={STRIDE})...")
+    print(f"Pencereleme Başlıyor (Size={WINDOW_SIZE}, Stride={STRIDE})...")
 
     for i in range(0, min_len - WINDOW_SIZE, STRIDE):
         # Pencereyi kes
@@ -80,7 +103,7 @@ def build_windows():
     np.save(out_x, X_dataset)
     np.save(out_y, Y_dataset)
 
-    print(f"\n✅ Veri seti oluşturuldu!")
+    print(f"\nVeri seti oluşturuldu!")
     print(f"   X (Input) Shape: {X_dataset.shape} -> (Örnek, Süre, Özellik=3)")
     print(f"   Y (Label) Shape: {Y_dataset.shape} -> (Örnek, Süre, Çıktı=2)")
     print(f"   Kaydedilen yer: data/dataset_X.npy")

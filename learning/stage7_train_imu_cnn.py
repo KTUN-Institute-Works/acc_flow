@@ -16,6 +16,15 @@ from models.imu_alpha_net import IMUStabilizerNet
 
 
 def get_file_paths():
+    """
+    Stage 7 (Eğitim) aşaması için gerekli giriş/çıkış dosya yollarını üretir.
+
+    Döndürdüğü yollar:
+    - x_path: Modelin girdisi olan IMU özellikleri (Stage 6'dan).
+    - y_path: Modelin hedefi/etiketi olan Visual Jitter (Stage 6'dan).
+    - model_save_path: Eğitilen modelin ağırlıklarının (state_dict) kaydedileceği .pth dosyası.
+    - loss_plot_path: Eğitim süresince azalan hata (MSE) miktarının grafiği.
+    """
     x_path = os.path.join(project_root, "data", "dataset_X.npy")
     y_path = os.path.join(project_root, "data", "dataset_Y.npy")
     model_save_path = os.path.join(project_root, "models", "best_imu_model.pth")
@@ -24,6 +33,21 @@ def get_file_paths():
 
 
 def train_model():
+    """
+    IMU verilerinden görsel sarsıntıyı tahmin edecek olan Derin Öğrenme (CNN)
+    modelini PyTorch kullanarak eğitir.
+
+    İşlem Adımları:
+    1. Stage 6'da oluşturulan Numpy veri setleri yüklenir ve PyTorch Tensörlerine çevrilir.
+    2. Cihaz (CPU/GPU) kontrolü yapılır ve veriler/model uygun cihaza taşınır.
+    3. IMUStabilizerNet modeli, Adam optimizasyon algoritması ve MSE (Ortalama Kare Hatası)
+       kayıp fonksiyonu (loss function) başlatılır.
+    4. Belirlenen Epoch sayısı kadar eğitim döngüsü çalıştırılır (Forward pass, Loss, Backward pass, Step).
+    5. Eğitilen modelin ağırlıkları 'best_imu_model.pth' olarak kaydedilir.
+    6. Eğitim sürecinin (Loss değerlerinin) gidişatı bir grafik (PNG) olarak dışa aktarılır.
+    7. Başarımı teyit etmek için ilk veri örneği üzerinde hızlı bir tahmin (inference) yapılarak
+       hedef ve tahmin ortalamaları konsola yazdırılır.
+    """
     print(f"--- STAGE 7: CNN Eğitimi Başlıyor ---")
     x_path, y_path, model_save_path, loss_plot_path = get_file_paths()
 

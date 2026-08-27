@@ -6,6 +6,15 @@ import matplotlib.pyplot as plt
 
 
 def get_file_paths():
+    """
+    Stage 2 (Filtreleme) işlemi için gerekli giriş, çıkış ve grafik dosyalarının
+    yollarını projenin ana dizinine göre dinamik olarak hesaplar.
+
+    Döndürdüğü yollar:\n
+    ``input_path:`` Stage 1'den gelen senkronize edilmiş sensör verisi.\n
+    ``output_path:`` Çıkarılan yeni özelliklerin (smooth, jitter) kaydedileceği yer.\n
+    ``plot_path:`` Filtreleme işleminin görsel analizinin kaydedileceği PNG dosyası.
+    """
     current_script_path = os.path.abspath(__file__)
     project_root = os.path.dirname(os.path.dirname(current_script_path))
 
@@ -24,7 +33,6 @@ def apply_high_pass_filter(data, cutoff, fs, order=4):
     nyquist = 0.5 * fs
     normal_cutoff = cutoff / nyquist
     b, a = butter(order, normal_cutoff, btype='high', analog=False)
-    # filtfilt: Faz kaymasını (gecikmeyi) önlemek için veriyi ileri-geri filtreler
     y = filtfilt(b, a, data)
     return y
 
@@ -41,60 +49,63 @@ def apply_low_pass_filter(data, cutoff, fs, order=4):
 
 
 def process_imu():
+    """
+    Senkronize edilmiş IMU verilerine sinyal işleme teknikleri uygulayarak
+    anlamlı özellikler (features) çıkarır.
+
+    İşlem Adımları:
+
+    1. Zaman damgalarından sinyalin örnekleme frekansını (fs) hesaplar.
+
+    2. Her bir eksen (X, Y, Z) için Butterworth Low-Pass filtresi uygulayarak yerçekimini ve bilinçli/yavaş hareketleri ('smooth') izole eder.
+
+    3. Her bir eksen için Butterworth High-Pass filtresi uygulayarak ani sarsıntı ve titreşimleri ('jitter') izole eder.
+
+    4. Yapay zeka modelleri için tek bir sarsıntı metriği sağlamak amacıyla X, Y, Z sarsıntılarının bileşkesini (jitter_magnitude) hesaplar.
+
+    5. Tüm bu yeni özellikleri CSV olarak kaydeder ve doğrulama için X eksenindeki değişimi gösteren bir grafik (PNG) çizer.
+    """
     input_path, output_path, plot_path = get_file_paths()
     print(f"--- STAGE 2: IMU Özellik Çıkarımı (Smoothing & Jitter) ---")
 
     if not os.path.exists(input_path):
-        print("❌ HATA: Synced sensors dosyası bulunamadı. Önce Stage 1'i çalıştır.")
+        print(" HATA: Synced sensors dosyası bulunamadı. Önce Stage 1'i çalıştır.")
         return
 
     df = pd.read_csv(input_path)
 
-    # Örnekleme frekansını (FPS) hesapla
-    # Stage 1'de video zamanına eşitlemiştik, yani frekans = Video FPS
     timestamps = df['timestamp_sec'].values
     dt = np.mean(np.diff(timestamps))
     fs = 1.0 / dt
-    print(f"📡 Sinyal Frekansı (Video FPS): {fs:.2f} Hz")
+    print(f" Sinyal Frekansı (Video FPS): {fs:.2f} Hz")
 
-    # Filtre Ayarları
-    # Jitter için genelde 1Hz - 2Hz altını kesip atmak gerekir (Yerçekimi DC'dir, yani 0Hz).
-    CUTOFF_FREQ = 2.0  # 2 Hz'in üzerindeki her şey "Titreşim" kabul edilecek.
+    CUTOFF_FREQ = 2.0
 
     features = pd.DataFrame()
     features['frame_idx'] = df['frame_idx']
     features['timestamp_sec'] = df['timestamp_sec']
 
-    # X, Y, Z eksenleri için işlem yap
     for axis in ['x', 'y', 'z']:
         raw_col = f'acc_{axis}'
         raw_data = df[raw_col].values
 
-        # 1. Low Pass (Smooth Motion / Gravity)
         smooth_data = apply_low_pass_filter(raw_data, cutoff=CUTOFF_FREQ, fs=fs)
 
-        # 2. High Pass (Jitter / Noise)
         jitter_data = apply_high_pass_filter(raw_data, cutoff=CUTOFF_FREQ, fs=fs)
 
-        # Dataframe'e ekle
         features[f'smooth_{axis}'] = smooth_data
         features[f'jitter_{axis}'] = jitter_data
 
-    # Ekstra: Toplam Jitter Enerjisi (Magnitude)
-    # CNN'in "ne kadar sarsıntı var?" sorusuna tek bir sayıyla cevap verebilmesi için.
     features['jitter_magnitude'] = np.sqrt(
         features['jitter_x'] ** 2 + features['jitter_y'] ** 2 + features['jitter_z'] ** 2
     )
 
-    # Kaydet
     features.to_csv(output_path, index=False)
-    print(f"✅ İşlenmiş özellikler kaydedildi: {output_path}")
+    print(f" İşlenmiş özellikler kaydedildi: {output_path}")
     print(f"   (İçerik: smooth_x/y/z ve jitter_x/y/z)")
 
-    # --- Görselleştirme (Analiz için çok önemli) ---
     plt.figure(figsize=(12, 6))
 
-    # Sadece X eksenini çizelim (Karmaşa olmasın)
     plt.subplot(2, 1, 1)
     plt.title("X Ekseni: Ham Veri vs. Smooth (Yerçekimi+Hareket)")
     plt.plot(df['timestamp_sec'], df['acc_x'], label='Ham (Raw)', alpha=0.5, color='gray')
@@ -110,8 +121,7 @@ def process_imu():
 
     plt.tight_layout()
     plt.savefig(plot_path)
-    print(f"📊 Analiz grafiği oluşturuldu: {plot_path}")
-    # plt.show() # Sunucuda çalışmıyorsa kapalı kalsın
+    print(f" Analiz grafiği oluşturuldu: {plot_path}")
 
 
 if __name__ == "__main__":

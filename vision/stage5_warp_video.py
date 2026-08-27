@@ -4,6 +4,14 @@ import os
 
 
 def get_file_paths():
+    """
+    Stage 5 (Debug) işlemi için dosya yollarını üretir.
+
+    Döndürdüğü yollar:
+    - video_path: İşlem görecek orijinal ham video.
+    - trajectory_path: Stage 4'te hesaplanan yörünge verileri (numpy matrisi).
+    - output_video_path: 4 farklı stabilizasyon denemesinin birleştirildiği 2x2 grid çıktı videosu.
+    """
     current_script_path = os.path.abspath(__file__)
     project_root = os.path.dirname(os.path.dirname(current_script_path))
 
@@ -15,12 +23,26 @@ def get_file_paths():
 
 
 def warp_video_debug():
+    """
+    Hesaplanan kamera yörüngelerinin videoya uygulanması sırasında oluşabilecek
+    yön (işaret) ve ölçek (scale) hatalarını görsel olarak tespit etmek için
+    2x2 ızgara (grid) formatında bir test videosu oluşturur.
+
+    İşlem Adımları:
+    1. Yörünge verisi yüklenir ve optik akış boyutu (320px) ile orijinal video
+       boyutu arasındaki ölçek faktörü (scale_factor) hesaplanır.
+    2. Her kare için 3 farklı stabilizasyon hipotezi (Affine Transformation) uygulanır:
+       - Method A: Standart stabilizasyon (Smooth - Orig).
+       - Method B: Ters yönlü stabilizasyon (Orig - Smooth).
+       - Method C: Yarı güçlü stabilizasyon (Method A * 0.5).
+    3. Orijinal kare ve bu 3 hipotez aynı ekranda birleştirilip yeni bir MP4 olarak kaydedilir.
+    """
     print(f"--- STAGE 5: Stabilizasyon Hata Ayıklama (Grid View) ---")
     video_path, trajectory_path, output_video_path = get_file_paths()
 
     # 1. Veri Yükleme
     if not os.path.exists(video_path) or not os.path.exists(trajectory_path):
-        print("❌ HATA: Dosyalar eksik.")
+        print("HATA: Dosyalar eksik.")
         return
 
     data = np.load(trajectory_path)
@@ -49,7 +71,7 @@ def warp_video_debug():
     processed_width = 320.0
     scale_factor = W / processed_width
 
-    print(f"📏 Orijinal: {W}x{H} | Scale: {scale_factor:.2f}")
+    print(f"Orijinal: {W}x{H} | Scale: {scale_factor:.2f}")
 
     # Grid Video (2x Genişlik, 2x Yükseklik)
     out_W = W * 2
@@ -59,7 +81,7 @@ def warp_video_debug():
 
     font = cv2.FONT_HERSHEY_SIMPLEX
 
-    print("🚀 Debug videosu hazırlanıyor...")
+    print("Debug videosu hazırlanıyor...")
 
     for i in range(frames):
         ret, frame = cap.read()
@@ -114,8 +136,8 @@ def warp_video_debug():
 
     cap.release()
     out.release()
-    print(f"\n✅ Debug videosu hazır: {output_video_path}")
-    print("👉 Videoyu izleyin. Hangi kare stabil duruyor?")
+    print(f"\nDebug videosu hazır: {output_video_path}")
+    print("Videoyu izleyin. Hangi kare stabil duruyor?")
     print("   - Method A iyiyse: Formül doğru, scale veya smoothing ayarı yanlış.")
     print("   - Method B iyiyse: İşaret hatası yapmışız (Ters çevireceğiz).")
     print("   - Method C iyiyse: Scale factor çok büyük gelmiş.")

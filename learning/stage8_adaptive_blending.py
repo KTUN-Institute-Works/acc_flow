@@ -16,6 +16,16 @@ from models.imu_alpha_net import IMUStabilizerNet
 
 
 def get_file_paths():
+    """
+    Stage 8 (Inference ve Stabilizasyon) için gerekli dosya yollarını üretir.
+
+    Döndürdüğü yollar:
+    - video_path: Stabilize edilecek orijinal girdi videosu.
+    - imu_features_path: Orijinal videoya ait işlenmiş (Stage 2) IMU verileri.
+    - model_path: Stage 7'de eğitilmiş olan CNN modelinin ağırlıkları.
+    - output_video_path: Tamamen stabilize edilmiş ve kırpılmış final video.
+    - plot_path: Modelin tahmin ettiği sarsıntı miktarının zaman grafiği.
+    """
     video_path = os.path.join(project_root, "data", "videos", "input.mp4")
     imu_features_path = os.path.join(project_root, "data", "sensors", "processed_features.csv")
     model_path = os.path.join(project_root, "models", "best_imu_model.pth")
@@ -25,6 +35,21 @@ def get_file_paths():
 
 
 def apply_adaptive_stabilization():
+    """
+    Eğitilmiş CNN modelini kullanarak, sadece IMU verilerinden görsel sarsıntıyı tahmin eder
+    ve videoyu optik bir analiz (RAFT) yapmadan stabilize eder.
+
+    İşlem Adımları:
+    1. Eğitilen IMUStabilizerNet modeli yüklenir.
+    2. Tüm videonun IMU Jitter (sarsıntı) verisi modele verilerek her kare için
+       X ve Y eksenindeki piksel kaymaları (dx, dy) tahmin edilir.
+    3. Tahmin edilen bu kaymalar, orijinal video çözünürlüğüne (Scale Factor) uyarlanır.
+    4. Stabilizasyon (kaydırma) sırasında kenarlarda oluşacak siyah boşlukları gizlemek için
+       tüm videoyu kapsayan güvenli bir 'Global Crop' alanı hesaplanır.
+    5. Her bir kare, tahmin edilen sarsıntının tersi yönünde kaydırılır (Warping) ve kırpılır.
+    6. Analiz ve sunum kolaylığı için Orijinal, Stabilize, Overlay (Örtüşen) ve 3'lü Panel
+       şeklinde çeşitli karşılaştırma videoları render edilerek kaydedilir.
+    """
     start_time = time.time()
     print(f"--- STAGE 8: CNN Tabanlı Final Stabilizasyon ---")
     video_path, imu_path, model_path, out_path, plot_path = get_file_paths()
@@ -34,12 +59,12 @@ def apply_adaptive_stabilization():
     model = IMUStabilizerNet().to(device)
 
     if not os.path.exists(model_path):
-        print("❌ HATA: Model dosyası yok.")
+        print("HATA: Model dosyası yok.")
         return
 
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
-    print("🧠 Model yüklendi ve hazır.")
+    print("Model yüklendi ve hazır.")
 
     # 2. Tüm IMU Verisini Hazırla
     # Stage 6'da pencereleme yapmıştık, şimdi TÜM videoyu tek seferde tahmin edeceğiz.
@@ -53,7 +78,7 @@ def apply_adaptive_stabilization():
     input_tensor = torch.from_numpy(imu_data).float().unsqueeze(0).to(device)
 
     # 3. Tahmin (Inference)
-    print("🔮 Tüm video için sarsıntı tahmini yapılıyor...")
+    print("Tüm video için sarsıntı tahmini yapılıyor...")
     with torch.no_grad():
         # Çıktı: (1, Length, 2) -> (dx, dy)
         predicted_offsets = model(input_tensor)
@@ -61,7 +86,7 @@ def apply_adaptive_stabilization():
     # Numpy'a geri dön
     offsets = predicted_offsets.squeeze(0).cpu().numpy()  # (Length, 2)
 
-    print(f"✅ Tahmin tamamlandı. Shape: {offsets.shape}")
+    print(f"Tahmin tamamlandı. Shape: {offsets.shape}")
 
     # 4. Video İşleme (Warping)
     cap = cv2.VideoCapture(video_path)
@@ -108,7 +133,7 @@ def apply_adaptive_stabilization():
     crop_H = y2 - y1
 
     if crop_W <= 0 or crop_H <= 0:
-        print("❌ HATALI CROP:", crop_W, crop_H)
+        print("HATALI CROP:", crop_W, crop_H)
         return
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out_orig = cv2.VideoWriter(os.path.join(project_root, "outputs", "original_crop.mp4"), fourcc, fps,
@@ -132,7 +157,7 @@ def apply_adaptive_stabilization():
 
 
 
-    print("🚀 Video render ediliyor...")
+    print("Video render ediliyor...")
     max_frames = min(total_frames, len(offsets))
     for i in range(max_frames):
         ret, frame = cap.read()
@@ -206,8 +231,8 @@ def apply_adaptive_stabilization():
     out_panel.release()
     out_final.release()
     end_time = time.time()
-    print(f"✅ Final Video Hazır: {out_path}")
-    print(f"⏰ Toplam süre: {end_time - start_time:.2f} saniye")
+    print(f"Final Video Hazır: {out_path}")
+    print(f"Toplam süre: {end_time - start_time:.2f} saniye")
 
     # 5. Sonuç Grafiği (Makale için harika bir görsel)
     plt.figure(figsize=(12, 6))
@@ -219,7 +244,7 @@ def apply_adaptive_stabilization():
     plt.legend()
     plt.grid(True)
     plt.savefig(plot_path)
-    print(f"📊 Final grafik kaydedildi: {plot_path}")
+    print(f"Final grafik kaydedildi: {plot_path}")
 
 
 if __name__ == "__main__":

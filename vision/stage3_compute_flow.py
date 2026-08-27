@@ -6,45 +6,51 @@ import torch
 import argparse
 from collections import OrderedDict
 
-# --- RAFT ENTEGRASYONU ---
-# Proje kök dizinini bul
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-raft_path = os.path.join(project_root, 'RAFT')  # RAFT klasör yolu
 
-# Python yoluna ekle ki import edebilelim
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+raft_path = os.path.join(project_root, 'RAFT')
+
 sys.path.append(raft_path)
 
 try:
     from core.raft import RAFT
     from core.utils.utils import InputPadder
 except ImportError:
-    print("❌ HATA: RAFT modülleri bulunamadı.")
-    print(f"   Aranan yol: {raft_path}")
-    print("   Lütfen RAFT klasörünün proje ana dizininde olduğundan emin olun.")
+    print("HATA: RAFT modülleri bulunamadı.")
+    print(f"Aranan yol: {raft_path}")
+    print("Lütfen RAFT klasörünün proje ana dizininde olduğundan emin olun.")
     sys.exit(1)
 
-# --- AYARLAR ---
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 MODEL_WEIGHTS = os.path.join(project_root, "models", "raft-things.pth")
 
 
-# --- KRİTİK DÜZELTME: Hibrit Args Sınıfı ---
-# RAFT kodu hem "args.small" (attribute) hem de "'dropout' in args" (dictionary)
-# şeklinde kontrol yaptığı için bu özel sınıfı kullanıyoruz.
 class InputArgs:
+    """
+    RAFT modelinin konfigürasyon argümanlarını tutan yardımcı (wrapper) sınıf.
+    RAFT orijinal kaynak kodu, argümanları hem dictionary ('dropout' in args)
+    hem de attribute (args.small) mantığıyla kontrol ettiği için, argparse
+    yerine bu melez yapı kullanılmıştır.
+    """
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
     def __getattr__(self, name):
-        # Eğer bir attribute bulunamazsa None döndür (Hata vermesin)
         return self.__dict__.get(name, None)
 
     def __contains__(self, key):
-        # 'in' operatörü için destek (if 'dropout' in args...)
         return key in self.__dict__
 
 
 def get_file_paths():
+    """
+    Stage 3 işlemi için gerekli girdi ve çıktı dosya yollarını üretir.
+
+    Döndürdüğü yollar:
+    - video_path: İşlenecek kaynak video dosyası (input.mp4).
+    - output_npy_path: Hesaplanan optik akış vektörlerinin (U, V) ham matematiksel formatta kaydedileceği dosya.
+    - vis_video_path: Optik akışın renk kodlu (HSV) olarak görselleştirildiği çıktı videosu.
+    """
     video_path = os.path.join(project_root, "data", "videos", "input.mp4")
     output_npy_path = os.path.join(project_root, "data", "videos", "optical_flow.npy")
     vis_video_path = os.path.join(project_root, "outputs", "optical_flow_raft.mp4")
@@ -52,41 +58,52 @@ def get_file_paths():
 
 
 def load_image(img_bgr):
-    """OpenCV görüntüsünü RAFT tensoruna çevirir"""
+    """
+    OpenCV'nin (Height, Width, Channels) ve BGR formatındaki matrisini alır,
+    RAFT'ın beklediği PyTorch Tensor formatına (Batch, Channels, Height, Width)
+    ve RGB dizilimine dönüştürür.
+    """
     img = torch.from_numpy(img_bgr).permute(2, 0, 1).float()
     return img[None].to(DEVICE)
 
 
 def compute_flow_raft():
+    """
+    RAFT modelini kullanarak videodaki ardışık kareler arasındaki optik akışı (piksel hareketlerini) hesaplar.
+
+    İşlem Adımları:
+    1. Sistemde GPU/CPU durumu kontrol edilir ve RAFT önceden eğitilmiş ağırlıklarıyla (raft-things.pth) yüklenir.
+    2. Video okunur ve bellek/hız optimizasyonu için çözünürlüğü küçültülerek 8'in katlarına yuvarlanır.
+    3. Her ardışık iki kare (Frame t ve Frame t+1) modele sokularak piksel bazlı hareket (U, V vektörleri) tahmin edilir.
+    4. Bu vektörler görsel analiz için yönün renge, hızın parlaklığa dönüştüğü bir HSV videoya dönüştürülür.
+    5. Yapay zeka pipeline'ının bir sonraki adımında kullanılmak üzere ham tensor verisi NumPy (.npy) olarak kaydedilir.
+    """
+    # ...
     print(f"--- STAGE 3: Optical Flow Hesaplama (RAFT) ---")
-    print(f"🖥️  Cihaz: {DEVICE}")
+    print(f"Cihaz: {DEVICE}")
     if DEVICE == 'cpu':
-        print("⚠️  UYARI: CPU üzerinde RAFT çok yavaş çalışabilir.")
+        print("UYARI: CPU üzerinde RAFT çok yavaş çalışabilir.")
 
     video_path, output_npy_path, vis_video_path = get_file_paths()
 
     # 1. KONTROLLER
     if not os.path.exists(video_path):
-        print(f"❌ HATA: Video dosyası bulunamadı: {video_path}")
+        print(f"HATA: Video dosyası bulunamadı: {video_path}")
         return
     if not os.path.exists(MODEL_WEIGHTS):
-        print(f"❌ HATA: Model ağırlık dosyası bulunamadı: {MODEL_WEIGHTS}")
+        print(f"HATA: Model ağırlık dosyası bulunamadı: {MODEL_WEIGHTS}")
         return
 
-    # 2. RAFT MODELİNİ YÜKLE
-    # RAFT'ın beklediği tüm parametreleri buraya ekliyoruz
     args = InputArgs(
         model=MODEL_WEIGHTS,
         small=False,
         mixed_precision=False,
         alternate_corr=False,
-        dropout=0.0  # Hatanın kaynağı buydu, eksikti.
+        dropout=0.0
     )
 
-    # Modeli başlat
     model = RAFT(args)
 
-    # State dict yükle (DataParallel 'module.' önekini temizleyerek)
     if DEVICE == 'cpu':
         state_dict = torch.load(args.model, map_location=torch.device('cpu'))
     else:
@@ -100,39 +117,36 @@ def compute_flow_raft():
     model.load_state_dict(new_state_dict)
     model.to(DEVICE)
     model.eval()
-    print("✅ RAFT modeli başarıyla yüklendi.")
+    print("RAFT modeli başarıyla yüklendi.")
 
-    # 3. VİDEO İŞLEME
     cap = cv2.VideoCapture(video_path)
     fps = cap.get(cv2.CAP_PROP_FPS)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    # Optimizasyon: Genişlik 320px
     RESIZE_WIDTH = 320
     ratio = RESIZE_WIDTH / width
     RESIZE_HEIGHT = int(height * ratio)
 
-    # 8'in katı olma zorunluluğu (RAFT için)
     RESIZE_WIDTH = ((RESIZE_WIDTH // 8) * 8)
     RESIZE_HEIGHT = ((RESIZE_HEIGHT // 8) * 8)
 
-    print(f"📏 İşlem Boyutu: {RESIZE_WIDTH}x{RESIZE_HEIGHT}")
+    print(f"İşlem Boyutu: {RESIZE_WIDTH}x{RESIZE_HEIGHT}")
 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out_vis = cv2.VideoWriter(vis_video_path, fourcc, fps, (RESIZE_WIDTH, RESIZE_HEIGHT))
 
     ret, prev_frame = cap.read()
     if not ret:
-        print("❌ HATA: Video okunamadı.")
+        print("HATA: Video okunamadı.")
         return
 
     prev_frame = cv2.resize(prev_frame, (RESIZE_WIDTH, RESIZE_HEIGHT))
 
     flow_data = []
 
-    print("🚀 Akış hesaplanıyor...")
+    print("Akış hesaplanıyor...")
 
     with torch.no_grad():
         for i in range(total_frames - 1):
@@ -177,9 +191,9 @@ def compute_flow_raft():
     final_flow = np.array(flow_data, dtype=np.float32)
     np.save(output_npy_path, final_flow)
 
-    print(f"\n✅ RAFT Flow verisi kaydedildi: {output_npy_path}")
-    print(f"   Boyut: {final_flow.shape}")
-    print(f"✅ Önizleme videosu: {vis_video_path}")
+    print(f"\nRAFT Flow verisi kaydedildi: {output_npy_path}")
+    print(f"Boyut: {final_flow.shape}")
+    print(f"Önizleme videosu: {vis_video_path}")
 
 
 if __name__ == "__main__":

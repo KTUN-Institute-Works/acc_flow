@@ -17,47 +17,50 @@ def get_file_paths():
 
 
 def sync_data():
+    """
+        Video ve IMU sensör verilerini zaman ekseninde birbirine hizalar (senkronize eder).
+
+        İşlem Adımları:
+        1. Videonun FPS ve frame sayısını kullanarak her bir karenin (frame) ideal
+           saniyesini (0.0, 0.033, 0.066...) hesaplar.
+        2. IMU verisindeki tekrar eden (aynı milisaniyeye sahip) zaman damgalarını,
+           değerlerin ortalamasını (mean) alarak tekilleştirir ve temizler.
+        3. Sensör zamanını saniyeye çevirip başlangıç noktasını (t=0) videoyla eşler.
+        4. Doğrusal interpolasyon (linear interpolation) kullanarak, sensör verilerini
+           tam olarak video karelerinin olduğu zaman damgalarına göre yeniden örnekler (resampling).
+        5. Sonuçları, her bir video karesi için bir satır olacak şekilde
+           'synced_sensors.csv' dosyasına kaydeder.
+    """
     video_path, imu_path, output_path = get_file_paths()
     print(f"--- STAGE 1: IMU & Video Senkronizasyonu ---")
 
-    # 1. Video Zaman Çizelgesini Oluştur
+
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        print("❌ Video açılamadı.")
+        print(" Video açılamadı.")
         return
 
     fps = cap.get(cv2.CAP_PROP_FPS)
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     cap.release()
 
-    # Video karelerinin olması gereken ideal zamanları (0.0, 0.033, 0.066...)
     video_timestamps = np.arange(0, frame_count) / fps
-    print(f"🎥 Video: {frame_count} frames @ {fps} FPS")
+    print(f" Video: {frame_count} frames @ {fps} FPS")
 
-    # 2. IMU Verisini Yükle ve Temizle
     df = pd.read_csv(imu_path)
     df.columns = [c.strip() for c in df.columns]  # Boşluk temizliği
 
-    # --- KRİTİK ADIM: Aynı milisaniyedeki verileri birleştir (Average) ---
-    # Burst gelen verileri (örn: 13660ms'deki 3 veriyi) tek bir satıra indirger.
     df_clean = df.groupby('timestamp_ms', as_index=False).mean()
 
-    print(f"📉 IMU Ham Veri: {len(df)} satır")
-    print(f"🧹 Temizlenmiş (Dedup) Veri: {len(df_clean)} satır")
+    print(f" IMU Ham Veri: {len(df)} satır")
+    print(f" Temizlenmiş (Dedup) Veri: {len(df_clean)} satır")
 
-    # Zamanı saniyeye çevir ve sıfırla (Video ile aynı başlangıca çekiyoruz)
-    # Varsayım: Video ve Sensör kaydı aynı anda başladı (t=0)
     t_imu = df_clean['timestamp_ms'].values / 1000.0
     t_imu = t_imu - t_imu[0]  # Başlangıcı 0 yap
 
-    # Sensör değerleri
     imu_vals = df_clean[['x', 'y', 'z']].values
 
-    # 3. İnterpolasyon (Resampling)
-    # IMU verisini, tam olarak video karelerinin zamanına (video_timestamps) denk getiriyoruz.
-    # 'linear' interpolasyon, eksik araları çizgi çekerek doldurur.
-
-    print("🔄 İnterpolasyon yapılıyor (Video karelerine hizalanıyor)...")
+    print(" İnterpolasyon yapılıyor (Video karelerine hizalanıyor)...")
 
     # Fonksiyonları oluştur
     interp_func_x = interp1d(t_imu, imu_vals[:, 0], kind='linear', fill_value="extrapolate")
@@ -79,7 +82,7 @@ def sync_data():
     })
 
     df_synced.to_csv(output_path, index=False)
-    print(f"✅ Senkronize veri kaydedildi: {output_path}")
+    print(f" Senkronize veri kaydedildi: {output_path}")
     print(df_synced.head())
 
 

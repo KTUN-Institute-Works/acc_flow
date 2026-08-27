@@ -3,6 +3,20 @@ import torch.nn as nn
 
 
 class IMUStabilizerNet(nn.Module):
+    """
+        IMU (İvmeölçer/Jiroskop) sensör verilerini (zaman serisi) kullanarak,
+        videodaki x ve y eksenlerindeki görsel piksel kaymalarını tahmin eden
+        1 Boyutlu Evrişimli Sinir Ağı (1D CNN) modeli.
+
+        Mimari Özellikleri:
+        - 4 adet 1D Evrişim (Conv1D) katmanından oluşur.
+        - Kernel boyutu (5) ve Padding (2) sayesinde Sequence-to-Sequence (Girdi uzunluğu = Çıktı uzunluğu)
+          yapısını korur.
+        - Ağ, 3 kanallı (x, y, z sarsıntı) veriyi önce 64 kanala kadar genişleterek
+          gizli özellikleri öğrenir, ardından 2 kanala (x, y görsel kayma) sıkıştırır.
+        - Regresyon (sayısal tahmin) problemi olduğu için çıktı katmanında aktivasyon
+          fonksiyonu (Softmax/ReLU vb.) kullanılmaz.
+        """
     def __init__(self):
         super(IMUStabilizerNet, self).__init__()
 
@@ -28,6 +42,17 @@ class IMUStabilizerNet(nn.Module):
         self.conv4 = nn.Conv1d(in_channels=32, out_channels=2, kernel_size=5, padding=2)
 
     def forward(self, x):
+        """
+        Modelin ileri yayılım (forward pass) işlemi.
+
+        Args:
+            x (torch.Tensor): Modele giren IMU verisi.
+                              Beklenen boyut: (Batch_Size, Sequence_Length, 3)
+
+        Returns:
+            torch.Tensor: Tahmin edilen görsel kayma (shift) miktarı.
+                          Çıktı boyutu: (Batch_Size, Sequence_Length, 2)
+        """
         # PyTorch Conv1D [Batch, Channels, Length] bekler.
         # Bizim verimiz [Batch, Length, Channels] (19, 60, 3).
         # Bu yüzden önce boyutları değiştirmeliyiz (Permute).
