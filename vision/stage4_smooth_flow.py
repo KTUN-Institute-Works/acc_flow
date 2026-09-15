@@ -71,13 +71,57 @@ def compute_trajectory():
     SIGMA = 15
     smooth_trajectory = gaussian_filter1d(trajectory, sigma=SIGMA, axis=0)
 
+    # ---------------------------------------------------------
+    # Visual jitter
+    # ---------------------------------------------------------
+
     visual_jitter = trajectory - smooth_trajectory
 
+    jitter_x = visual_jitter[:, 0]
+    jitter_y = visual_jitter[:, 1]
+
+    jitter_magnitude = np.sqrt(
+        jitter_x ** 2 +
+        jitter_y ** 2
+    )
+
+    # ---------------------------------------------------------
+    # Smooth trajectory'nin anlık hareketi
+    # ---------------------------------------------------------
+
+    smooth_motion = np.diff(
+        smooth_trajectory,
+        axis=0,
+        prepend=smooth_trajectory[0:1]
+    )
+
+    smooth_dx = smooth_motion[:, 0]
+    smooth_dy = smooth_motion[:, 1]
+
+    smooth_motion_magnitude = np.sqrt(
+        smooth_dx ** 2 +
+        smooth_dy ** 2
+    )
+
+    # ---------------------------------------------------------
+    # Adaptive Alpha Ground Truth
+    # ---------------------------------------------------------
+
+    EPS = 1e-6
+
+    alpha_gt = (
+            jitter_magnitude /
+            (jitter_magnitude + smooth_motion_magnitude + EPS)
+    )
+
+    alpha_gt = np.clip(alpha_gt, 0.0, 1.0)
+
     final_data = np.hstack([
-        global_shifts,  # 0, 1
-        trajectory,  # 2, 3
-        smooth_trajectory,  # 4, 5
-        visual_jitter  # 6, 7
+        global_shifts,  # 0,1
+        trajectory,  # 2,3
+        smooth_trajectory,  # 4,5
+        visual_jitter,  # 6,7
+        alpha_gt[:, None]  # 8
     ])
 
     np.save(output_path, final_data)

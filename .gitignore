@@ -4,3 +4,5 @@ RAFT/
 data/videos/
 data/sensors/
 outputs/
+merge_files_for_ai.py
+project_context.txt

@@ -55,27 +55,30 @@ def build_windows():
     # [dx, dy, traj_x, traj_y, smooth_x, smooth_y, jitter_x, jitter_y]
     # Bize son iki sütun lazım: Visual Jitter (X, Y)
     visual_data = np.load(traj_path)
-    visual_jitter = visual_data[:, 6:8]  # Sütun 6 ve 7
+    visual_jitter = visual_data[:, 6:8]
+    alpha_gt = visual_data[:, 8:9]  # Sütun 6 ve 7
 
-    # 2. Boyut Kontrolü (Senkronizasyon Teyidi)
+    # Senkronizasyon
     n_imu = len(df_imu)
-    n_vis = len(visual_jitter)
-    print(f"Veri Uzunlukları -> IMU: {n_imu}, Visual: {n_vis}")
+    n_vis = len(visual_data)
 
-    # En kısa olana göre kırp (Eğer 1-2 frame fark varsa sondan atalım)
     min_len = min(n_imu, n_vis)
+
     df_imu = df_imu.iloc[:min_len]
+
     visual_jitter = visual_jitter[:min_len]
+    alpha_gt = alpha_gt[:min_len]
 
-    # 3. Girdi ve Çıktı Dizilerini Oluştur
-    # X (Input): IMU Jitter (High Frequency Accelerometer)
-    # Sadece jitter sütunlarını alıyoruz.
-    # (Opsiyonel: smooth verisini de ekleyebiliriz ama şimdilik jitter odaklı gidelim)
-    X_full = df_imu[['jitter_x', 'jitter_y', 'jitter_z']].values
+    # Input
+    X_full = df_imu[
+        ['jitter_x', 'jitter_y', 'jitter_z']
+    ].values
 
-    # Y (Target): Visual Jitter (Görüntüden hesaplanan düzeltme)
-    # Method A doğrulandığı için direkt visual_jitter'ı hedef olarak alıyoruz.
-    Y_full = visual_jitter
+    # Multi-task target
+    Y_full = np.concatenate(
+        [visual_jitter, alpha_gt],
+        axis=1
+    )
 
     # 4. Pencereleme (Sliding Window)
     # CNN'in geçmişe ve geleceğe bakabilmesi için bir pencere genişliği seçiyoruz.
@@ -90,7 +93,7 @@ def build_windows():
     for i in range(0, min_len - WINDOW_SIZE, STRIDE):
         # Pencereyi kes
         x_window = X_full[i: i + WINDOW_SIZE]
-        y_window = Y_full[i: i + WINDOW_SIZE]
+        y_window = Y_full[i:i + WINDOW_SIZE]
 
         windows_X.append(x_window)
         windows_Y.append(y_window)
@@ -103,9 +106,11 @@ def build_windows():
     np.save(out_x, X_dataset)
     np.save(out_y, Y_dataset)
 
-    print(f"\nVeri seti oluşturuldu!")
-    print(f"   X (Input) Shape: {X_dataset.shape} -> (Örnek, Süre, Özellik=3)")
-    print(f"   Y (Label) Shape: {Y_dataset.shape} -> (Örnek, Süre, Çıktı=2)")
+    print(
+        f"Y (Label) Shape: "
+        f"{Y_dataset.shape} -> "
+        f"(Örnek, Süre, Çıktı=3: dx,dy,alpha)"
+    )
     print(f"   Kaydedilen yer: data/dataset_X.npy")
 
 

@@ -12,7 +12,7 @@ current_script_path = os.path.abspath(__file__)
 project_root = os.path.dirname(os.path.dirname(current_script_path))
 sys.path.append(project_root)
 
-from models.imu_alpha_net import IMUStabilizerNet
+from models.imu_alpha_net import IMUAdaptiveStabilizerNet
 
 
 def get_file_paths():
@@ -28,7 +28,7 @@ def get_file_paths():
     """
     video_path = os.path.join(project_root, "data", "videos", "input.mp4")
     imu_features_path = os.path.join(project_root, "data", "sensors", "processed_features.csv")
-    model_path = os.path.join(project_root, "models", "best_imu_model.pth")
+    model_path = os.path.join(project_root, "models", "best_imu_adaptive_model.pth")
     output_video_path = os.path.join(project_root, "outputs", "final_cnn_stabilized.mp4")
     plot_path = os.path.join(project_root, "outputs", "final_comparison_plot.png")
     return video_path, imu_features_path, model_path, output_video_path, plot_path
@@ -56,7 +56,7 @@ def apply_adaptive_stabilization():
 
     # 1. Modeli Yükle
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = IMUStabilizerNet().to(device)
+    model = IMUAdaptiveStabilizerNet().to(device)
 
     if not os.path.exists(model_path):
         print("HATA: Model dosyası yok.")
@@ -80,11 +80,31 @@ def apply_adaptive_stabilization():
     # 3. Tahmin (Inference)
     print("Tüm video için sarsıntı tahmini yapılıyor...")
     with torch.no_grad():
-        # Çıktı: (1, Length, 2) -> (dx, dy)
-        predicted_offsets = model(input_tensor)
 
-    # Numpy'a geri dön
-    offsets = predicted_offsets.squeeze(0).cpu().numpy()  # (Length, 2)
+        predicted_motion, predicted_alpha = model(
+            input_tensor
+        )
+
+    offsets = (
+        predicted_motion
+        .squeeze(0)
+        .cpu()
+        .numpy()
+    )
+
+    alphas = (
+        predicted_alpha
+        .squeeze(0)
+        .cpu()
+        .numpy()
+        .squeeze(-1)
+    )
+
+    alphas = np.clip(
+        alphas,
+        0.0,
+        1.0
+    )
 
     print(f"Tahmin tamamlandı. Shape: {offsets.shape}")
 
@@ -98,20 +118,22 @@ def apply_adaptive_stabilization():
     # Scale Factor (Stage 5'ten hatırladığımız)
     # Model 320px referansıyla eğitildi (çünkü Target verisi öyleydi).
     # Orijinal video için bunu büyütmeliyiz.
-    REF_WIDTH = 320.0
     processed_width = 320.0  # RAFT scale
     scale_factor = W / processed_width
 
-    # Adaptive Blending Parametresi (Alpha)
-    # CNN çıktısına ne kadar güveniyoruz?
-    # 1.0 = Tamamen CNN ne derse o (Rijit).
-    # 0.8 = Biraz yumuşat.
-    ALPHA = 1.0
-
 
     # --- GLOBAL CROP HESABI ---
-    scaled_dx = -(offsets[:, 0] * scale_factor * ALPHA)
-    scaled_dy = -(offsets[:, 1] * scale_factor * ALPHA)
+    scaled_dx = -(
+            offsets[:, 0]
+            * scale_factor
+            * alphas
+    )
+
+    scaled_dy = -(
+            offsets[:, 1]
+            * scale_factor
+            * alphas
+    )
 
     min_dx = np.min(scaled_dx)
     max_dx = np.max(scaled_dx)
@@ -182,8 +204,19 @@ def apply_adaptive_stabilization():
             trajectory_y.append(pred_dy)
 
             # Ölçekle ve Uygula
-            dx = -(pred_dx * scale_factor * ALPHA)
-            dy = -(pred_dy * scale_factor * ALPHA)
+            alpha = alphas[i]
+
+            dx = -(
+                    pred_dx
+                    * scale_factor
+                    * alpha
+            )
+
+            dy = -(
+                    pred_dy
+                    * scale_factor
+                    * alpha
+            )
 
             M = np.float32([[1, 0, dx], [0, 1, dy]])
             frame_stab = cv2.warpAffine(
