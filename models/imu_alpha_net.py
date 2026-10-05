@@ -20,15 +20,26 @@ class IMUAdaptiveStabilizerNet(nn.Module):
             -> adaptive stabilization intensity
     """
 
-    def __init__(self):
+    def __init__(self, dilations=(1, 1, 1, 1), dropout=0.0, in_channels=3, motion_dim=2):
+        """
+        dilations: conv1, conv2, conv3 ve çıkış başlıkları için genişleme (dilation) katsayıları.
+            (1, 1, 1, 1) -> orijinal model (alıcı alan 17 kare ≈ 0.6 sn).
+            (1, 2, 4, 8) -> aynı ağırlık sayısı, alıcı alan 61 kare ≈ 2 sn (IDA'daki ~0.7 Hz yalpa için gerekli).
+        Ağırlık boyutları dilation'dan bağımsızdır; eski checkpoint'ler varsayılanla aynen yüklenir.
+        in_channels: IMU girdi kanalı (3 = jitter x,y,z; 5 = + roll, pitch eğim açıları)
+        motion_dim : hareket çıktısı (2 = dx, dy; 3 = dx, dy, dθ)
+        """
         super().__init__()
+        d1, d2, d3, d4 = dilations
+        self.dilations = tuple(dilations)
 
         # Feature extraction
         self.conv1 = nn.Conv1d(
-            in_channels=3,
+            in_channels=in_channels,
             out_channels=32,
             kernel_size=5,
-            padding=2
+            padding=2 * d1,
+            dilation=d1
         )
         self.bn1 = nn.BatchNorm1d(32)
 
@@ -36,7 +47,8 @@ class IMUAdaptiveStabilizerNet(nn.Module):
             in_channels=32,
             out_channels=64,
             kernel_size=5,
-            padding=2
+            padding=2 * d2,
+            dilation=d2
         )
         self.bn2 = nn.BatchNorm1d(64)
 
@@ -44,10 +56,13 @@ class IMUAdaptiveStabilizerNet(nn.Module):
             in_channels=64,
             out_channels=32,
             kernel_size=5,
-            padding=2
+            padding=2 * d3,
+            dilation=d3
         )
 
         self.relu = nn.ReLU()
+        # Dropout parametresizdir; eski checkpoint'lerle uyumluluğu bozmaz (varsayılan 0 = kapalı)
+        self.drop = nn.Dropout(dropout)
 
         # -------------------------------------------------
         # Task 1: Motion correction
@@ -55,9 +70,10 @@ class IMUAdaptiveStabilizerNet(nn.Module):
 
         self.motion_head = nn.Conv1d(
             in_channels=32,
-            out_channels=2,
+            out_channels=motion_dim,
             kernel_size=5,
-            padding=2
+            padding=2 * d4,
+            dilation=d4
         )
 
         # -------------------------------------------------
@@ -68,7 +84,8 @@ class IMUAdaptiveStabilizerNet(nn.Module):
             in_channels=32,
             out_channels=1,
             kernel_size=5,
-            padding=2
+            padding=2 * d4,
+            dilation=d4
         )
 
     def forward(self, x):
@@ -93,13 +110,13 @@ class IMUAdaptiveStabilizerNet(nn.Module):
             self.bn1(self.conv1(x))
         )
 
-        x = self.relu(
+        x = self.drop(self.relu(
             self.bn2(self.conv2(x))
-        )
+        ))
 
-        x = self.relu(
+        x = self.drop(self.relu(
             self.conv3(x)
-        )
+        ))
 
         # Two task-specific heads
         motion = self.motion_head(x)

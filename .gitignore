@@ -4,5 +4,10 @@ RAFT/
 data/videos/
 data/sensors/
 outputs/
-merge_files_for_ai.py
-project_context.txt
+
+# Multi-video dataset & generated artefacts
+data/IDA_split/
+data/cache/
+runs/
+results/ida_split/test/videos/
+results/

@@ -79,6 +79,37 @@ Our framework is strictly modularized into 8 stages. Place your shaky video at `
 **Inference (Testing):**
 * `python stage8_blend.py` - Runs inference on the full video using the trained model, applying adaptive warping and global cropping. Results are saved in the `outputs/` folder.
 
+## Multi-Video Training & Testing (IDA_split)
+
+The single-video stage scripts above are kept as they are. For the multi-video dataset the pipeline lives in
+`main.py` + the `pipeline/` package. **RAFT is used only to build training targets; testing/inference uses IMU only.**
+
+| Run (PyCharm) | Command line | What it does |
+|---|---|---|
+| `run_train.py` | `python main.py train` | RAFT ground truth for every clip in `data/IDA_split/train` (once, cached), clip-level train/val split, training `IMUAdaptiveStabilizerNet` (IMU -> dx, dy, dθ, α). Best model -> `models/imu_adaptive_multivideo.pth` |
+| `run_test.py` | `python main.py test` | Unseen clips from `data/IDA_split/test` (`config.TEST_CLIPS`) × 4 modes (α = 0, 0.5, 1, adaptive), stabilized **from IMU only**. Metrics + TR/EN plots. RAFT reference rows are added only if a RAFT cache already exists (`--raft-reference cache/off/compute`). |
+| `run_raft_video.py` | `python main.py raft-video` | Renders the RAFT training target applied to a clip (visual check of the ground truth) |
+| — | `python main.py plot` | Regenerates the TR/EN plots from saved results |
+
+* Dataset: `data/IDA_split/` (git-ignored); `manifest.csv` defines the split.
+* RAFT cache: `data/cache/<clip>.npz` (RAFT runs once per clip). Target = similarity transform (translation + rotation)
+  fitted to RAFT flow at corner points; jitter = trajectory − Gaussian(trajectory, σ = `TRAJ_SIGMA`).
+* α target (thesis): intentional-motion detection — α → 1 when the camera is steady, α → 0 during intentional pans
+  (`ALPHA_MODE = "pan"`, `ALPHA_PAN_V0`).
+* IMU input (`IMU_FEATURE = "tilt_motion"`, 8 channels): accelerometer + roll/pitch tilt in the jitter band, plus
+  slow tilt rate and linear acceleration for intentional-motion detection.
+* Metrics: DUTCode/NNDVS `MetricAnalyzer` (`evaluation/analyzer.py`): Stability, Distortion, CropRatio; plus CropArea
+  (remaining area after crop), residual jitter vs. RAFT (when cached) and throughput (FPS).
+* Device: CUDA > Apple MPS > CPU automatically (`--device` to force). All settings: `config.py`.
+
+Outputs:
+```
+results/ida_split/training/   history.csv, summary.json, plots/{en,tr}/training_loss
+results/ida_split/test/       metrics.csv/json, summary.csv, prediction_accuracy.csv, report.txt
+                              videos/<clip>/{alpha_0.0,alpha_0.5,alpha_1.0,adaptive,raft_gt*,compare}.mp4
+                              plots/{en,tr}/  metrics_by_clip, summary_by_mode, signals_<clip>, trajectory_<clip>
+```
+
 ## News
 - [x] Release data synchronization and temporal alignment code (Stage 0-1).
 - [x] Integrate RAFT for robust visual trajectory extraction (Stage 3-4).
